@@ -147,11 +147,12 @@ myobj.save("wake.mp3")
 myobj = gTTS("Sorry, I couldn't understand you.", lang='en', slow=False)
 myobj.save("confusion.mp3")
 
-file1 = open(r"C:\Users\nokil\OneDrive\Documents\College\Brockport Spring 2023\Classes\Artifical Intell\Project\data.txt", "r")
+file1 = open(r"data.txt", "r")
 
 while True:
-    os.system("del result.mp3")
-    with m as source: audio = r.listen(source, phrase_time_limit=2)
+    with m as source:
+        r.adjust_for_ambient_noise(source)
+        audio = r.listen(source, phrase_time_limit=2)
     try:
         text=r.recognize_google(audio)
         wakeIndex = text.find('test')
@@ -170,6 +171,8 @@ while True:
                 
                 if text == "stop":
                     break
+                elif text == "cancel":
+                    continue
                 else:
                     textList = text.split(" ")
                     textListNums = textList.copy()
@@ -286,6 +289,8 @@ while True:
                                 
                         case _:
                             print("default")
+                            
+                    os.system("del result.mp3")
 
             except Exception as e:
                 print("Sorry couldn't hear you")
@@ -298,6 +303,7 @@ while True:
     except:
         continue
         
+os.system("del result.mp3")
 os.system("del wake.mp3")
 os.system("del confusion.mp3")
 
