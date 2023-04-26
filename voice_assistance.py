@@ -147,7 +147,12 @@ myobj.save("wake.mp3")
 myobj = gTTS("Sorry, I couldn't understand you.", lang='en', slow=False)
 myobj.save("confusion.mp3")
 
-file1 = open(r"data.txt", "r")
+try:
+    file1 = open(r"data.txt", "r")
+    data_exist = True
+except:
+    data_exist = False
+    print("Couldn't find data.txt")
 
 while True:
     with m as source:
@@ -190,12 +195,13 @@ while True:
                     
                     results = model.predict(vectorizedData).tolist()
                     print(results)
-                    
-                    for line in file1:
-                        pass
-                    last_line = line
-                    last_line = last_line.strip("\n")
-                    tempHum = last_line.split(",")
+
+                    if data_exist == True:
+                        for line in file1:
+                            pass
+                        last_line = line
+                        last_line = last_line.strip("\n")
+                        tempHum = last_line.split(",")
                     
                     maxIndex = results[0].index(max(results[0]))
                     
@@ -205,13 +211,19 @@ while True:
                     
                     match maxIndex:
                         case 0:
-                            speech = 'Sure, the temperature is ' + tempHum[0] + ' degrees'
+                            if data_exist == True:
+                                speech = 'Sure, the temperature is ' + tempHum[0] + ' degrees'
+                            else:
+                                speech = "Sorry, I don't have access to temperature data"
                             myobj = gTTS(speech, lang='en', slow=False)
                             myobj.save("result.mp3")
                             playsound("result.mp3")
                         
                         case 1:
-                            speech = 'Sure, the humidity is ' + tempHum[1] + ' percent'
+                            if data_exist == True:
+                                speech = 'Sure, the humidity is ' + tempHum[1] + ' percent'
+                            else:
+                                speech = "Sorry, I don't have access to humidity data"
                             myobj = gTTS(speech, lang='en', slow=False)
                             myobj.save("result.mp3")
                             playsound("result.mp3")
