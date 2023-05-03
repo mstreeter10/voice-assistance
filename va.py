@@ -16,6 +16,8 @@ import numpy as np
 import os
 import speech_recognition as sr
 import webbrowser
+import requests
+import keyboard
 
 word_index = reuters.get_word_index()
 word_index["subtract"] = 30979
@@ -32,7 +34,7 @@ def vectorize_sequences(sequences, dimension=10000):
         for j in sequence:
             results[i, j] = 1.
     return results
-
+ 
 def get_nums(textIn):
     results = []
     for c in textIn:
@@ -40,6 +42,14 @@ def get_nums(textIn):
             results.append(c)
     return results
 
+def get_weather(location):
+    api_key = '22d529828770387a53d901b6b5d60a76'
+    url = f'http://api.openweathermap.org/data/2.5/weather?q={location}&appid={api_key}&units=imperial'
+    response = requests.get(url).json()
+    temperature = response['main']['temp']
+    description = response['weather'][0]['description']
+    return temperature, description
+    
 train_temp = [["what's", "the", "temperature"],
              ["what's", "the", "temp"],
              ["how", "humid", "is", "it"],
@@ -93,6 +103,7 @@ train_temp = [["what's", "the", "temperature"],
              ["who", "are", "you"],
              ["what", "can", "you", "do"],
              ["what", "is", "your", "purpose"],
+             ["tell", "me", "about", "yourself"],
              ["what's", "the", "time"],
              ["tell", "me", "the", "time"],
              ["what", "time", "is", "it"],
@@ -102,7 +113,11 @@ train_temp = [["what's", "the", "temperature"],
              ["play", "me", "song"],
              ["website"],
              ["pull", "up", "your", "website"],
-             ["what's", "your", "website"]]
+             ["what's", "your", "website"],
+             ["what's", "the", "weather", "outside"],
+             ["weather", "outside"],
+             ["weather", "forecast"],
+             ["what's", "current", "weather"]]
 
 test_temp = [["the", "hot"],
              ["the", "cold"],
@@ -116,7 +131,7 @@ test_temp = [["the", "hot"],
 
 train_temp_labels = [0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 2,
                      2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5,
-                     2, 3, 4, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9]
+                     2, 3, 4, 5, 6, 6, 6, 6, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10]
 test_temp_labels = [0, 0, 1, 0, 1, 0, 0, 0, 1]
 
 train_temp_nums = train_temp.copy()
@@ -138,7 +153,7 @@ y_test = np.array(test_temp_labels)
 
 model = keras.Sequential([
     layers.Dense(32, activation="relu"), 
-    layers.Dense(10, activation="softmax") 
+    layers.Dense(11, activation="softmax") 
 ])
 
 model.compile(optimizer="rmsprop",\
@@ -149,8 +164,32 @@ history = model.fit(x_train, \
 y_train, \
 epochs = 300)    
 
-results = model.predict(x_test)
-print(results)
+ptest = model.predict(x_test).tolist()
+
+test_temp = [["the", "hot"],
+             ["the", "cold"],
+             ["the", "humid"],
+             ["temp"],
+             ["water"],
+             ["warm"],
+             ["humidity", "temperature"],
+             ["tell", "me", "the", "temperature"],
+             ["tell", "me", "the", "humidity"]]
+print("\n")
+for i in range(0, len(test_temp)):
+    maxIndex = ptest[i].index(max(ptest[i]))
+    if maxIndex == 0:
+        test_result = "temperature"
+    elif maxIndex == 1:
+        test_result = "humidity"
+        
+    if test_temp_labels[i] == maxIndex:
+        ci = "correct"
+    else:
+        ci = "incorrect"
+    
+    print(str(test_temp[i]) + " confidence: " + str(max(ptest[i])) + "    guess: " + test_result + "    result: " + ci)
+    
 
 r = sr.Recognizer()
 m = sr.Microphone()
@@ -158,12 +197,16 @@ m = sr.Microphone()
 os.system("del wake.mp3")
 os.system("del confusion.mp3")
 os.system("del result.mp3")
+os.system("del location.mp3")
 
 myobj = gTTS("Yes?", lang='en', slow=False)
 myobj.save("wake.mp3")
 
 myobj = gTTS("Sorry, I couldn't understand you.", lang='en', slow=False)
 myobj.save("confusion.mp3")
+
+myobj = gTTS("What city location?", lang='en', slow=False)
+myobj.save("location.mp3")
 
 try:
     file1 = open(r"C:\Users\nokil\OneDrive\Documents\College\Brockport Spring 2023\Classes\Artifical Intell\Project\voice_assistance\data.txt", "r")
@@ -177,10 +220,16 @@ while True:
         r.adjust_for_ambient_noise(source)
         audio = r.listen(source, phrase_time_limit=2)
     try:
-        text=r.recognize_google(audio)
-        wakeIndex = text.find('doctor you')
-        print(text)
-        if wakeIndex >= 0:
+        wakeIndex = -1
+        try:
+            text = r.recognize_google(audio)
+            text = text.lower()
+            wakeIndex = text.find('doctor')
+            print(text)
+        except:
+            if not keyboard.is_pressed('space'):
+                continue
+        if (keyboard.is_pressed('space')) | (wakeIndex >= 0):
             playsound("wake.mp3")
             print("Speak....")
             with m as source: audio = r.listen(source, phrase_time_limit=5)
@@ -225,7 +274,6 @@ while True:
                         tempHum = last_line.split(",")
                     
                     maxIndex = results[0].index(max(results[0]))
-                    
                     if max(results[0]) < 0.75:
                         playsound("confusion.mp3")
                         continue
@@ -321,7 +369,7 @@ while True:
                                 playsound("result.mp3")
                             
                         case 6:
-                            speech = "I’m a simple voice assistant capable of telling you the time, playing music from youtube, temperature and humidity of my environment, and the answers to basic mathematical questions. I was created by 3 undergraduate students with nothing better to do with their time."
+                            speech = "I’m a simple voice assistant. I can tell you about the time, the temperature and humidity of your environment, the weather in different areas, and answers to basic math questions. I can also play music from Youtube! I was created by 3 undergraduate students with nothing better to do with their time."
                             myobj = gTTS(speech, lang='en', slow=False)
                             myobj.save("result.mp3")
                             playsound("result.mp3")
@@ -355,7 +403,32 @@ while True:
                                 pywhatkit.playonyt(text)
                         
                         case 9:
+                            speech = 'Sure, here is my website'
+                            myobj = gTTS(speech, lang='en', slow=False)
+                            myobj.save("result.mp3")
+                            playsound("result.mp3")
+                            
                             webbrowser.open("https://sites.google.com/view/ningyu")
+                        
+                        case 10:
+                            if 'weather' in text:
+                                playsound("location.mp3")
+                                with m as source:
+                                    audio = r.listen(source, phrase_time_limit=5)
+                                try:
+                                    location = r.recognize_google(audio)
+                                    print("You said-> {}".format(location))
+                                    temperature, description = get_weather(location)
+                                    speech = 'The temperature in {} is {} degrees Fahrenheit and the weather is {}'.format(location, temperature, description)
+                                    myobj = gTTS(speech, lang='en', slow=False)
+                                    myobj.save("result.mp3")
+                                    playsound("result.mp3")
+                                except:
+
+                                    speech = 'Sorry, I could not recognize your location or there was an error retrieving the weather information.'
+                                    myobj = gTTS(speech, lang='en', slow=False)
+                                    myobj.save("result.mp3")
+                                    playsound("result.mp3")
                                 
                         case _:
                             print("default")
@@ -369,7 +442,7 @@ while True:
         else:
             wakeIndex = text.find('stop')
             if wakeIndex >= 0:
-                break
+                break 
     except:
         continue
         
